@@ -8,6 +8,8 @@ Start with [README.md](/Users/miguelarmengol/_dev/ocecat/f-tools/README.md) for 
 - Ticket creation and execution tracking: [src/f-ticket/AGENTS.md](/Users/miguelarmengol/_dev/ocecat/f-tools/src/f-ticket/AGENTS.md)
 - Browser-based monitoring and ticket editing: [src/f-report/AGENTS.md](/Users/miguelarmengol/_dev/ocecat/f-tools/src/f-report/AGENTS.md)
 
+If the task is to maintain or modify `f-tools` itself rather than use it in another repo, switch to [AGENTS.MAINTAINER.md](/Users/miguelarmengol/_dev/ocecat/f-tools/AGENTS.MAINTAINER.md).
+
 Use this workflow unless the user asks for something else:
 
 1. Initialize the target repo if needed with `./f-ticket init`.
