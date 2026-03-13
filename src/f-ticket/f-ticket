@@ -1,0 +1,64 @@
+#!/bin/zsh
+
+set -euo pipefail
+SCRIPT_DIR="${0:A:h}"
+PROJECT_ROOT="${SCRIPT_DIR:h:h}"
+
+print_help() {
+  cat <<'HELP'
+Usage:
+  f-ticket -h
+  f-ticket help
+  f-ticket <init|new|list|update|test> [options]
+
+f-ticket init [--modules tickets|planning|both]
+  Initialize the repository for ticketing, planning, or both.
+
+f-ticket new "Ticket title" [--type workstream|job] [--priority p0|p1|p2|p3] [--owner name] [--labels a,b,c] [--parent 0001] [--depends-on 0002,0003]
+  Create a new ticket in ./_TICKETS from the ticket template.
+
+f-ticket list [--status open|doing|blocked|done|wontfix] [--owner name] [--label foo]
+  List tickets with optional filters.
+
+f-ticket update <id> [options]
+  Update a ticket's front matter, labels, dependencies, or body sections.
+
+f-ticket test
+  Run automated f-ticket tests.
+HELP
+}
+
+cmd="${1:-}"
+if [ -n "$cmd" ]; then
+  shift
+fi
+
+case "$cmd" in
+  -h|--help|help)
+    print_help
+    ;;
+  init)
+    node "$SCRIPT_DIR/init.js" "$@"
+    ;;
+  new)
+    node "$SCRIPT_DIR/new.js" "$@"
+    ;;
+  list)
+    node "$SCRIPT_DIR/list.js" "$@"
+    ;;
+  update)
+    node "$SCRIPT_DIR/update.js" "$@"
+    ;;
+  test)
+    node "$PROJECT_ROOT/test/f-ticket/run.js" "$@"
+    ;;
+  "")
+    print_help >&2
+    exit 2
+    ;;
+  *)
+    echo "Unknown command: $cmd" >&2
+    print_help >&2
+    exit 1
+    ;;
+esac

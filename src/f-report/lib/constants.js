@@ -1,0 +1,37 @@
+"use strict";
+
+const DEFAULT_HOST = "127.0.0.1";
+const DEFAULT_PORT = 4174;
+const DEFAULT_INTERVAL_MS = 5000;
+const STARTUP_STABILITY_MS = 1000;
+const STOP_TERM_WAIT_MS = 2000;
+const STOP_KILL_WAIT_MS = 1200;
+const TICKETS_DIR_NAME = "_TICKETS";
+const STATUS_FILE_NAME = "status.json";
+const CONFIG_FILE_NAME = "config.json";
+const PID_FILE = ".f-report.pid";
+const LOG_FILE = ".f-report.log";
+const GLOBAL_STATE_ENV = "F_REPORT_HOME";
+const GLOBAL_STATE_DIR_NAME = ".f-report";
+const GLOBAL_DAEMON_FILE = "daemon.json";
+const GLOBAL_PROJECTS_FILE = "projects.json";
+const GLOBAL_LOG_FILE = "f-report.log";
+
+module.exports = {
+  DEFAULT_HOST,
+  DEFAULT_INTERVAL_MS,
+  DEFAULT_PORT,
+  CONFIG_FILE_NAME,
+  GLOBAL_DAEMON_FILE,
+  GLOBAL_LOG_FILE,
+  GLOBAL_PROJECTS_FILE,
+  GLOBAL_STATE_DIR_NAME,
+  GLOBAL_STATE_ENV,
+  LOG_FILE,
+  PID_FILE,
+  STARTUP_STABILITY_MS,
+  STATUS_FILE_NAME,
+  STOP_KILL_WAIT_MS,
+  STOP_TERM_WAIT_MS,
+  TICKETS_DIR_NAME,
+};

@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+
+"use strict";
+
+const path = require("path");
+
+const SCRIPT_DIR = __dirname;
+
+function printHelp() {
+  process.stdout.write(`Usage:
+  f-planner -h
+  f-planner help
+  f-planner <req|plan|doc> <name>
+
+Commands:
+  req   Create a requirement doc under ./_PLAN/<feature>/.
+  plan  Create a plan doc under ./_PLAN/<feature>/.
+  doc   Create a documentation doc under ./_DOCS/.
+`);
+}
+
+function runScript(fileName) {
+  require(path.join(SCRIPT_DIR, fileName));
+}
+
+function main() {
+  const cmd = process.argv[2] || "";
+
+  if (!cmd || cmd === "-h" || cmd === "--help" || cmd === "help") {
+    printHelp();
+    if (!cmd) process.exit(2);
+    return;
+  }
+
+  process.argv.splice(2, 1);
+
+  if (cmd === "req") {
+    runScript("req.js");
+    return;
+  }
+  if (cmd === "plan") {
+    runScript("plan.js");
+    return;
+  }
+  if (cmd === "doc") {
+    runScript("doc.js");
+    return;
+  }
+
+  process.stderr.write(`Unknown command: ${cmd}\n`);
+  printHelp();
+  process.exit(1);
+}
+
+main();

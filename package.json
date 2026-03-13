@@ -1,0 +1,16 @@
+{
+  "name": "f-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local file-based planning, ticketing, and reporting tools.",
+  "scripts": {
+    "test": "node test/f-ticket/run.js",
+    "test:f-report": "npm run build:f-report-web && node test/f-report/run.js",
+    "dev:f-report-web": "npm --prefix src/f-report/web run dev",
+    "build:f-report-web": "npm --prefix src/f-report/web run build",
+    "preview:f-report-web": "npm --prefix src/f-report/web run preview"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
