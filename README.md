@@ -45,6 +45,23 @@ Requirements:
 - Node.js 18+
 - zsh for the wrappers
 
+Agent PATH setup:
+
+- If an agent should invoke `f-ticket`, `f-planner`, or `f-report` as bare commands, add this repo root to `PATH`.
+- From this repo root, run:
+
+```sh
+export PATH="$PWD:$PATH"
+```
+
+- To make that persistent in `zsh`, add this to `~/.zshrc`:
+
+```sh
+export PATH="/absolute/path/to/f-tools:$PATH"
+```
+
+- If you do not add the repo to `PATH`, invoke the tools with `./f-ticket`, `./f-planner`, and `./f-report`.
+
 Initialize a repo:
 
 ```sh
