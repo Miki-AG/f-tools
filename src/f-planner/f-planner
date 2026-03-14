@@ -10,9 +10,11 @@ function printHelp() {
   process.stdout.write(`Usage:
   f-planner -h
   f-planner help
+  f-planner prd
   f-planner <req|plan|doc> <name>
 
 Commands:
+  prd   Create the top-level PRD at ./_PLAN/010_PRD.md.
   req   Create a requirement doc under ./_PLAN/<feature>/.
   plan  Create a plan doc under ./_PLAN/<feature>/.
   doc   Create a documentation doc under ./_DOCS/.
@@ -34,6 +36,10 @@ function main() {
 
   process.argv.splice(2, 1);
 
+  if (cmd === "prd") {
+    runScript("prd.js");
+    return;
+  }
   if (cmd === "req") {
     runScript("req.js");
     return;

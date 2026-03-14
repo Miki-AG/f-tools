@@ -76,7 +76,11 @@ function testInitAutomationTickets() {
   const result = runTool(TICKET_BIN, repo, ["init", "--modules", "tickets"]);
   printResult("001-init-automation-tickets", result);
   assert(result.exitCode === 0, "f-ticket init --modules tickets must exit 0.");
+  expectExists(path.join(repo, "AGENTS.md"), "AGENTS.md must exist.");
+  expectExists(path.join(repo, "GEMINI.md"), "GEMINI.md must exist.");
   expectExists(path.join(repo, "_TICKETS", "README.md"), "_TICKETS/README.md must exist.");
+  assert(read(path.join(repo, "AGENTS.md")).includes("_TICKETS/"), "Ticket-only AGENTS.md must mention _TICKETS/.");
+  assert(read(path.join(repo, "GEMINI.md")).includes("AGENTS.md"), "GEMINI.md must redirect to AGENTS.md.");
   assert(!fs.existsSync(path.join(repo, "_PLAN")), "_PLAN must not exist for ticket-only init.");
   assert(!fs.existsSync(path.join(repo, "_DOCS")), "_DOCS must not exist for ticket-only init.");
 }
@@ -86,9 +90,13 @@ function testInitAutomationPlanning() {
   const result = runTool(TICKET_BIN, repo, ["init", "--modules", "planning"]);
   printResult("002-init-automation-planning", result);
   assert(result.exitCode === 0, "f-ticket init --modules planning must exit 0.");
+  expectExists(path.join(repo, "AGENTS.md"), "AGENTS.md must exist.");
+  expectExists(path.join(repo, "GEMINI.md"), "GEMINI.md must exist.");
   expectExists(path.join(repo, "_PLAN", "README.md"), "_PLAN/README.md must exist.");
   expectExists(path.join(repo, "_PLAN", "010_PRD.md"), "_PLAN/010_PRD.md must exist.");
   expectExists(path.join(repo, "_DOCS", "README.md"), "_DOCS/README.md must exist.");
+  assert(read(path.join(repo, "AGENTS.md")).includes("_PLAN/"), "Planning-only AGENTS.md must mention _PLAN/.");
+  assert(read(path.join(repo, "AGENTS.md")).includes("_DOCS/"), "Planning-only AGENTS.md must mention _DOCS/.");
   assert(!fs.existsSync(path.join(repo, "_TICKETS")), "_TICKETS must not exist for planning-only init.");
 }
 
@@ -97,10 +105,15 @@ function testInitInteractiveBoth() {
   const result = runTool(TICKET_BIN, repo, ["init"], { input: "3\n" });
   printResult("003-init-interactive-both", result);
   assert(result.exitCode === 0, "Interactive f-ticket init must exit 0.");
+  expectExists(path.join(repo, "AGENTS.md"), "AGENTS.md must exist.");
+  expectExists(path.join(repo, "GEMINI.md"), "GEMINI.md must exist.");
   expectExists(path.join(repo, "_TICKETS", "README.md"), "_TICKETS/README.md must exist.");
   expectExists(path.join(repo, "_PLAN", "README.md"), "_PLAN/README.md must exist.");
   expectExists(path.join(repo, "_DOCS", "README.md"), "_DOCS/README.md must exist.");
   expectExists(path.join(repo, "_PLAN", "010_PRD.md"), "_PLAN/010_PRD.md must exist.");
+  assert(read(path.join(repo, "AGENTS.md")).includes("_PLAN/"), "Both-mode AGENTS.md must mention _PLAN/.");
+  assert(read(path.join(repo, "AGENTS.md")).includes("_TICKETS/"), "Both-mode AGENTS.md must mention _TICKETS/.");
+  assert(read(path.join(repo, "AGENTS.md")).includes("_DOCS/"), "Both-mode AGENTS.md must mention _DOCS/.");
 }
 
 function testTicketHierarchyAndGenerators() {
@@ -189,6 +202,34 @@ function testInvalidParentValidation() {
   assert(result.stderr.includes("Parent ticket not found: 9999"), "Validation error must mention missing parent.");
 }
 
+function testPlannerPrdGenerator() {
+  const repo = makeTempRepo();
+  fs.mkdirSync(path.join(repo, "_PLAN"), { recursive: true });
+
+  const result = runTool(PLANNER_BIN, repo, ["prd"]);
+  printResult("014-prd", result);
+  assert(result.exitCode === 0, "f-planner prd must succeed.");
+  expectExists(path.join(repo, "_PLAN", "010_PRD.md"), "PRD doc must be created.");
+  assert(
+    read(path.join(repo, "_PLAN", "010_PRD.md")).includes("# Product Requirements Document"),
+    "PRD doc must include the template header."
+  );
+}
+
+function testInitPreservesExistingRootGuides() {
+  const repo = makeTempRepo();
+  const customAgents = "# Custom Agent Guide\n";
+  const customGemini = "# Custom Gemini Guide\n";
+  fs.writeFileSync(path.join(repo, "AGENTS.md"), customAgents, "utf8");
+  fs.writeFileSync(path.join(repo, "GEMINI.md"), customGemini, "utf8");
+
+  const result = runTool(TICKET_BIN, repo, ["init", "--modules", "tickets"]);
+  printResult("015-init-preserve-root-guides", result);
+  assert(result.exitCode === 0, "Init with existing root guides must still succeed.");
+  assert(read(path.join(repo, "AGENTS.md")) === customAgents, "Existing AGENTS.md must not be overwritten.");
+  assert(read(path.join(repo, "GEMINI.md")) === customGemini, "Existing GEMINI.md must not be overwritten.");
+}
+
 function main() {
   if (!fs.existsSync(TICKET_BIN)) {
     fail(`Missing root wrapper: ${TICKET_BIN}`);
@@ -203,6 +244,8 @@ function main() {
     ["003-init-interactive-both", testInitInteractiveBoth],
     ["004-ticket-hierarchy-and-generators", testTicketHierarchyAndGenerators],
     ["005-invalid-parent-validation", testInvalidParentValidation],
+    ["006-planner-prd-generator", testPlannerPrdGenerator],
+    ["007-init-preserves-existing-root-guides", testInitPreservesExistingRootGuides],
   ];
 
   let passed = 0;

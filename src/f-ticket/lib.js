@@ -55,6 +55,10 @@ function documentationTemplatePath() {
   return path.join(__dirname, "..", "f-planner", "templates", "documentation.md");
 }
 
+function prdTemplatePath() {
+  return path.join(__dirname, "..", "f-planner", "templates", "prd.md");
+}
+
 function todayISO() {
   const now = new Date();
   const year = now.getFullYear();
@@ -718,6 +722,7 @@ module.exports = {
   planDir,
   planFileName,
   planTemplatePath,
+  prdTemplatePath,
   readTicketRecordById,
   renderTemplate,
   repoRoot,

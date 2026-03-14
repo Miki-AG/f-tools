@@ -54,6 +54,8 @@ Initialize a repo:
 ./f-ticket init --modules both
 ```
 
+`f-ticket init` also writes root `AGENTS.md` and `GEMINI.md` guidance files in the target repo if they do not already exist.
+
 Create and manage tickets:
 
 ```sh
@@ -66,6 +68,7 @@ Create and manage tickets:
 Create planning and documentation artifacts:
 
 ```sh
+./f-planner prd
 ./f-planner req "Update Workflow"
 ./f-planner plan "Update Workflow"
 ./f-planner doc "Workflow Guide"
@@ -98,5 +101,5 @@ Behavior summary:
 
 - Read the root README first.
 - Use `_PLAN` for planning, `_TICKETS` for execution, `_DOCS` for finished behavior docs.
-- Do not invent naming. Follow the file names produced by `f-planner req`, `f-planner plan`, and `f-planner doc`.
+- Do not invent naming. Follow the file names produced by `f-planner prd`, `f-planner req`, `f-planner plan`, and `f-planner doc`.
 - Keep documentation synchronized with the implemented behavior, not the intended behavior.

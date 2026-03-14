@@ -7,11 +7,18 @@ const {
   TICKETS_DIR_NAME,
   docsDir,
   planDir,
+  prdTemplatePath,
   repoRoot,
+  renderTemplate,
   ticketsDir,
+  todayISO,
+  ensureReadableFile,
   validateModulesSelection,
   writeFileAtomic,
 } = require("./lib");
+
+const ROOT_AGENTS_FILE = "AGENTS.md";
+const ROOT_GEMINI_FILE = "GEMINI.md";
 
 function fail(message, code = 1) {
   process.stderr.write(`${message}\n`);
@@ -146,19 +153,80 @@ Post-implementation documentation lives here.
 `;
 }
 
-function prdContent() {
-  return `# Product Requirements Document
+function rootAgentsContent(modules) {
+  if (modules === "tickets") {
+    return `# Agent Guide
 
-## Purpose
-Describe the product direction and the major planning goals for this repository.
+This repo uses the f-tools ticket workflow.
 
-## Scope
-- Define the intended planning scope.
-- Capture major constraints and non-goals.
+Use \`${TICKETS_DIR_NAME}/\` for execution tracking.
+Create tickets with \`./f-ticket new\`.
+Inspect work with \`./f-ticket list\`.
+Keep status, labels, acceptance checks, and logs current with \`./f-ticket update\`.
 
-## Features
-- Add feature folders under \`${PLAN_DIR_NAME}/\` as planning work expands.
+Keep \`${TICKETS_DIR_NAME}/\` as the source of truth for execution state.
 `;
+  }
+
+  if (modules === "planning") {
+    return `# Agent Guide
+
+This repo uses the f-tools planning workflow.
+
+Use \`${PLAN_DIR_NAME}/\` for planning artifacts and \`${DOCS_DIR_NAME}/\` for implemented behavior docs.
+Keep \`${PLAN_DIR_NAME}/010_PRD.md\` current for product direction.
+Create the top-level PRD with \`./f-planner prd\` if it is missing.
+Create requirement and plan docs with \`./f-planner req\` and \`./f-planner plan\`.
+Create implementation docs with \`./f-planner doc\`.
+
+Use documentation for implemented behavior, not intended behavior.
+`;
+  }
+
+  return `# Agent Guide
+
+This repo uses the f-tools planning and ticket workflow.
+
+Use \`${PLAN_DIR_NAME}/\` for planning, \`${TICKETS_DIR_NAME}/\` for execution, and \`${DOCS_DIR_NAME}/\` for implemented behavior docs.
+
+Recommended flow:
+1. Create \`${PLAN_DIR_NAME}/010_PRD.md\` with \`./f-planner prd\` if it is missing, then update it when overall product direction changes.
+2. Create feature requirement and plan docs with \`./f-planner req\` and \`./f-planner plan\`.
+3. Create workstreams and jobs with \`./f-ticket new\`.
+4. Keep ticket state current with \`./f-ticket update\`.
+5. Write or refresh docs with \`./f-planner doc\` after behavior is implemented.
+
+Do not invent alternate file naming. Use the files created by the tools.
+`;
+}
+
+function rootGeminiContent() {
+  return `# Gemini Guide
+
+- Follow \`AGENTS.md\` for workflow instructions in this repo.
+`;
+}
+
+function writeRootGuideIfMissing(fileName, content) {
+  const filePath = path.join(repoRoot(), fileName);
+  if (fs.existsSync(filePath)) {
+    let stat;
+    try {
+      stat = fs.statSync(filePath);
+    } catch (err) {
+      fail(`Unable to stat ${fileName}: ${err.message}`);
+    }
+    if (!stat.isFile()) {
+      fail(`${fileName} exists but is not a file: ${filePath}`);
+    }
+    return;
+  }
+
+  try {
+    writeFileAtomic(filePath, content);
+  } catch (err) {
+    fail(`Unable to write ${fileName}: ${err.message}`);
+  }
 }
 
 function createPlanningArtifacts(modules) {
@@ -179,11 +247,18 @@ function createPlanningArtifacts(modules) {
 
   if (modules === "planning" || modules === "both") {
     try {
-      writeFileAtomic(path.join(planDir(), "010_PRD.md"), prdContent());
+      ensureReadableFile(prdTemplatePath(), "PRD template");
+      writeFileAtomic(
+        path.join(planDir(), "010_PRD.md"),
+        renderTemplate(prdTemplatePath(), { date: todayISO() })
+      );
     } catch (err) {
       fail(`Unable to write ${PLAN_DIR_NAME}/010_PRD.md: ${err.message}`);
     }
   }
+
+  writeRootGuideIfMissing(ROOT_AGENTS_FILE, rootAgentsContent(modules));
+  writeRootGuideIfMissing(ROOT_GEMINI_FILE, rootGeminiContent());
 }
 
 function promptModules() {

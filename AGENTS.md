@@ -13,7 +13,7 @@ If the task is to maintain or modify `f-tools` itself rather than use it in anot
 Use this workflow unless the user asks for something else:
 
 1. Initialize the target repo if needed with `./f-ticket init`.
-2. Capture planning artifacts with `./f-planner req`, `./f-planner plan`, and `./f-planner doc` as needed.
+2. Capture planning artifacts with `./f-planner prd`, `./f-planner req`, `./f-planner plan`, and `./f-planner doc` as needed.
 3. Create execution tickets with `./f-ticket new`.
 4. Keep ticket status, labels, checks, and log entries current with `./f-ticket update`.
 5. Use `./f-report start` when you need a live view of one or more repos in a browser.
