@@ -181,6 +181,26 @@ function parentTicketId(ticket: TicketSummary): string {
   return String(ticket.parent || "").trim();
 }
 
+function normalizeTicketSelectionToken(value: unknown): string | null {
+  const parsed = toTicketNumber(value);
+  if (parsed === null || parsed < 0) return null;
+  return String(parsed).padStart(4, "0");
+}
+
+function parseTicketSelectionInput(value: unknown): string[] {
+  const seen = new Set<string>();
+  const selected: string[] = [];
+
+  for (const token of String(value || "").split(/[,\n]/)) {
+    const normalized = normalizeTicketSelectionToken(token);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    selected.push(normalized);
+  }
+
+  return selected;
+}
+
 function rowSurfaceClasses(row: VisibleTicketRow): string {
   if (row.isWorkstream) {
     return "border-sky-500/25 bg-sky-500/5 shadow-sm";
@@ -206,7 +226,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
   const [statusMessage, setStatusMessage] = useState("loading...");
   const [lastRefreshText, setLastRefreshText] = useState("last refresh: -");
   const [statusFilters, setStatusFilters] = useState<StatusFilterMap>(buildDefaultStatusFilters);
-  const [minTicketId, setMinTicketId] = useState<number | null>(null);
+  const [ticketSelectionInput, setTicketSelectionInput] = useState("");
   const [labelFilter, setLabelFilter] = useState("");
   const [expandedWorkstreamIds, setExpandedWorkstreamIds] = useState<string[]>([]);
   const [isMobileChromeVisible, setIsMobileChromeVisible] = useState(false);
@@ -236,8 +256,8 @@ export function ProjectPage({ config }: ProjectPageProps) {
       }
       setStatusFilters(next);
 
-      if (Number.isFinite(parsed.minTicketId) && parsed.minTicketId >= 0) {
-        setMinTicketId(parsed.minTicketId);
+      if (typeof parsed.ticketSelectionInput === "string") {
+        setTicketSelectionInput(parsed.ticketSelectionInput);
       }
       if (typeof parsed.labelFilter === "string") {
         setLabelFilter(parsed.labelFilter);
@@ -258,12 +278,12 @@ export function ProjectPage({ config }: ProjectPageProps) {
     try {
       window.localStorage.setItem(
         getPrefsKey(selectedProjectId),
-        JSON.stringify({ statusFilters, minTicketId, labelFilter, expandedWorkstreamIds })
+        JSON.stringify({ statusFilters, ticketSelectionInput, labelFilter, expandedWorkstreamIds })
       );
     } catch (_err) {
       // Ignore local storage write failures.
     }
-  }, [expandedWorkstreamIds, labelFilter, minTicketId, selectedProjectId, statusFilters]);
+  }, [expandedWorkstreamIds, labelFilter, selectedProjectId, statusFilters, ticketSelectionInput]);
 
   useEffect(() => {
     let cancelled = false;
@@ -365,12 +385,26 @@ export function ProjectPage({ config }: ProjectPageProps) {
     setProject(loadedProject);
     setTickets(loadedTickets);
 
-    const visibleCount = loadedTickets.filter((ticket) => {
+    const selectedTicketIds = new Set(parseTicketSelectionInput(ticketSelectionInput));
+    const baseFilteredTickets = loadedTickets.filter((ticket) => {
       if (!statusFilters[normalizeStatus(ticket.status)]) return false;
       if (!ticketHasLabel(ticket, labelFilter)) return false;
-      if (minTicketId === null) return true;
-      const idNum = toTicketNumber(ticket.id || ticket.fileId);
-      return idNum !== null && idNum >= minTicketId;
+      return true;
+    });
+    const selectedWorkstreamIds = new Set(
+      baseFilteredTickets
+        .filter((ticket) => {
+          const id = normalizeTicketSelectionToken(ticket.id || ticket.fileId);
+          return selectedTicketIds.has(String(id || "")) && isWorkstream(ticket);
+        })
+        .map((ticket) => ticketId(ticket))
+    );
+    const visibleCount = baseFilteredTickets.filter((ticket) => {
+      if (selectedTicketIds.size === 0) return true;
+
+      const id = normalizeTicketSelectionToken(ticket.id || ticket.fileId);
+      const parentId = parentTicketId(ticket);
+      return selectedTicketIds.has(String(id || "")) || selectedWorkstreamIds.has(parentId);
     }).length;
 
     const popupMessage = data.popup?.message ? ` | popup: ${data.popup.message}` : "";
@@ -379,7 +413,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
       `Project: ${projectLabel} | tickets: ${visibleCount}/${loadedTickets.length}${popupMessage}`
     );
     setLastRefreshText(`last refresh: ${new Date().toLocaleTimeString()}`);
-  }, [labelFilter, minTicketId, selectedProjectId, statusFilters]);
+  }, [labelFilter, selectedProjectId, statusFilters, ticketSelectionInput]);
 
   useEffect(() => {
     let alive = true;
@@ -403,16 +437,42 @@ export function ProjectPage({ config }: ProjectPageProps) {
     };
   }, [config.pollMs, refreshProject]);
 
-  const filteredTickets = useMemo(
+  const selectedTicketIds = useMemo(() => parseTicketSelectionInput(ticketSelectionInput), [ticketSelectionInput]);
+  const selectedTicketIdSet = useMemo(() => new Set(selectedTicketIds), [selectedTicketIds]);
+
+  const baseFilteredTickets = useMemo(
     () =>
       tickets.filter((ticket) => {
         if (!statusFilters[normalizeStatus(ticket.status)]) return false;
         if (!ticketHasLabel(ticket, labelFilter)) return false;
-        if (minTicketId === null) return true;
-        const idNum = toTicketNumber(ticket.id || ticket.fileId);
-        return idNum !== null && idNum >= minTicketId;
+        return true;
       }),
-    [labelFilter, minTicketId, statusFilters, tickets]
+    [labelFilter, statusFilters, tickets]
+  );
+
+  const selectedVisibleWorkstreamIds = useMemo(
+    () =>
+      new Set(
+        baseFilteredTickets
+          .filter((ticket) => {
+            const id = normalizeTicketSelectionToken(ticket.id || ticket.fileId);
+            return selectedTicketIdSet.has(String(id || "")) && isWorkstream(ticket);
+          })
+          .map((ticket) => ticketId(ticket))
+      ),
+    [baseFilteredTickets, selectedTicketIdSet]
+  );
+
+  const filteredTickets = useMemo(
+    () =>
+      baseFilteredTickets.filter((ticket) => {
+        if (selectedTicketIdSet.size === 0) return true;
+
+        const id = normalizeTicketSelectionToken(ticket.id || ticket.fileId);
+        const parentId = parentTicketId(ticket);
+        return selectedTicketIdSet.has(String(id || "")) || selectedVisibleWorkstreamIds.has(parentId);
+      }),
+    [baseFilteredTickets, selectedTicketIdSet, selectedVisibleWorkstreamIds]
   );
 
   const visibleRows = useMemo(() => {
@@ -528,11 +588,6 @@ export function ProjectPage({ config }: ProjectPageProps) {
                 >
                   {ticket.title || "(untitled)"}
                 </a>
-                {row.isWorkstream && row.hasChildren ? (
-                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {row.isExpanded ? "expanded" : "collapsed"} · {row.isExpanded ? "-" : "+"}
-                  </div>
-                ) : null}
               </div>
               <Badge className={cn("w-fit", status === "doing" ? "status-doing-pulse" : "")} variant={statusVariant(status)}>
                 {status}
@@ -646,32 +701,16 @@ export function ProjectPage({ config }: ProjectPageProps) {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted-foreground" htmlFor="min-ticket-id">
-                    Min ticket
+                  <label className="text-xs text-muted-foreground" htmlFor="ticket-selection-input">
+                    Tickets
                   </label>
                   <Input
-                    id="min-ticket-id"
-                    className="h-9 w-28"
-                    min={0}
-                    placeholder="e.g. 42"
-                    step={1}
-                    type="number"
-                    value={minTicketId === null ? "" : String(minTicketId)}
-                    onChange={(event) => {
-                      const raw = event.currentTarget.value.trim();
-                      if (!raw) {
-                        setMinTicketId(null);
-                        return;
-                      }
-                      const parsed = Number.parseInt(raw, 10);
-                      setMinTicketId(Number.isFinite(parsed) && parsed >= 0 ? parsed : null);
-                    }}
+                    id="ticket-selection-input"
+                    className="h-9 w-56"
+                    placeholder="e.g. 12, 42, 105"
+                    value={ticketSelectionInput}
+                    onChange={(event) => setTicketSelectionInput(event.currentTarget.value)}
                   />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                    Showing workstreams and orphaned jobs
-                  </div>
                 </div>
 
                 <div className="relative" ref={columnPopupRef}>
@@ -815,11 +854,6 @@ export function ProjectPage({ config }: ProjectPageProps) {
                                 >
                                   {ticket.title || "(untitled)"}
                                 </a>
-                                {row.isWorkstream && row.hasChildren ? (
-                                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                                    {row.isExpanded ? "expanded" : "collapsed"} · {row.isExpanded ? "-" : "+"}
-                                  </div>
-                                ) : null}
                                 <div className="mt-1 text-xs text-muted-foreground">{ticketHierarchyText(ticket)}</div>
                               </div>
                             </div>
