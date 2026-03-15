@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, Minus, Plus } from "lucide-react";
 
 import { getProjectConfig, getProjectReport, saveProjectConfig } from "@/lib/api";
 import type { BootstrapConfig } from "@/lib/bootstrap";
 import { FILTER_STATUSES, formatUpdatedParts, normalizeStatus, ticketHasLabel, toTicketNumber } from "@/lib/format";
 import { dominantStatusForTone, playStatusChangeTone } from "@/lib/sound";
 import type {
+  PopupPayload,
   ProjectSummary,
   TicketColumnKey,
   TicketColumnsByView,
@@ -14,7 +15,6 @@ import type {
   TicketSummary,
 } from "@/lib/types";
 import { PageHeader } from "@/components/layout/page-header";
-import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -206,12 +206,34 @@ function rowSurfaceClasses(row: VisibleTicketRow): string {
   return "border-stone-500/15 bg-stone-500/[0.03]";
 }
 
+function popupPanelClasses(level: PopupPayload["level"] | undefined): string {
+  if (level === "error") {
+    return "border-rose-500/70 bg-rose-500/12 text-rose-300 shadow-[0_0_0_1px_rgba(244,63,94,0.2)]";
+  }
+  if (level === "warn") {
+    return "border-amber-500/70 bg-amber-500/12 text-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.18)]";
+  }
+  return "border-sky-500/70 bg-sky-500/12 text-sky-300 shadow-[0_0_0_1px_rgba(56,189,248,0.18)]";
+}
+
+function PopupLevelIcon({ level }: { level?: PopupPayload["level"] }) {
+  if (level === "error") {
+    return <AlertCircle className="h-4 w-4" aria-hidden="true" />;
+  }
+  if (level === "warn") {
+    return <AlertTriangle className="h-4 w-4" aria-hidden="true" />;
+  }
+  return <Info className="h-4 w-4" aria-hidden="true" />;
+}
+
 export function ProjectPage({ config }: ProjectPageProps) {
   const selectedProjectId = config.selectedProjectId;
 
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [statusMessage, setStatusMessage] = useState("loading...");
+  const [popupState, setPopupState] = useState<PopupPayload | null>(null);
+  const [projectMetaText, setProjectMetaText] = useState("project: -");
   const [lastRefreshText, setLastRefreshText] = useState("last refresh: -");
   const [statusFilters, setStatusFilters] = useState<StatusFilterMap>(buildDefaultStatusFilters);
   const [ticketSelectionInput, setTicketSelectionInput] = useState("");
@@ -290,6 +312,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : "Unable to load column settings.";
         setStatusMessage(`Unable to load column settings: ${message}`);
+        setPopupState({ level: "error", message: `Unable to load column settings: ${message}` });
       }
     }
 
@@ -342,6 +365,8 @@ export function ProjectPage({ config }: ProjectPageProps) {
       setProject(null);
       setTickets([]);
       setStatusMessage("Project not found.");
+      setPopupState(null);
+      setProjectMetaText("project: -");
       setLastRefreshText(`last refresh: ${new Date().toLocaleTimeString()}`);
       return;
     }
@@ -372,6 +397,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
 
     setProject(loadedProject);
     setTickets(loadedTickets);
+    setPopupState(data.popup?.message ? data.popup : null);
 
     const selectedTicketIds = new Set(parseTicketSelectionInput(ticketSelectionInput));
     const baseFilteredTickets = loadedTickets.filter((ticket) => {
@@ -395,11 +421,9 @@ export function ProjectPage({ config }: ProjectPageProps) {
       return selectedTicketIds.has(String(id || "")) || selectedWorkstreamIds.has(parentId);
     }).length;
 
-    const popupMessage = data.popup?.message ? ` | popup: ${data.popup.message}` : "";
     const projectLabel = loadedProject?.path || selectedProjectId;
-    setStatusMessage(
-      `Project: ${projectLabel} | tickets: ${visibleCount}/${loadedTickets.length}${popupMessage}`
-    );
+    setStatusMessage(data.popup?.message ? data.popup.message : `tickets: ${visibleCount}/${loadedTickets.length}`);
+    setProjectMetaText(projectLabel);
     setLastRefreshText(`last refresh: ${new Date().toLocaleTimeString()}`);
   }, [labelFilter, selectedProjectId, statusFilters, ticketSelectionInput]);
 
@@ -413,6 +437,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
         if (!alive) return;
         const message = err instanceof Error ? err.message : "Unable to load f-report data.";
         setStatusMessage(`Unable to load f-report data: ${message}`);
+        setPopupState({ level: "error", message: `Unable to load f-report data: ${message}` });
       }
     }
 
@@ -737,7 +762,28 @@ export function ProjectPage({ config }: ProjectPageProps) {
               </div>
             </div>
 
-            <Alert id="f-report-status">{statusMessage}</Alert>
+            <div
+              className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6"
+              id="f-report-status"
+            >
+              <div
+                className={cn(
+                  "w-fit max-w-full rounded-md border px-4 py-3",
+                  popupPanelClasses(popupState?.level),
+                  popupState?.message ? "animate-pulse" : ""
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="opacity-90">
+                    <PopupLevelIcon level={popupState?.message ? popupState?.level : undefined} />
+                  </span>
+                  <span className="text-sm font-semibold tracking-[0.01em]">{statusMessage}</span>
+                </div>
+              </div>
+              <div className="px-1 text-[11px] text-muted-foreground md:text-right">
+                {projectMetaText}
+              </div>
+            </div>
           </div>
         </div>
 
