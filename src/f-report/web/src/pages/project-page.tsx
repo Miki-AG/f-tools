@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 
 import { getProjectConfig, getProjectReport, saveProjectConfig } from "@/lib/api";
 import type { BootstrapConfig } from "@/lib/bootstrap";
@@ -17,7 +18,6 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,13 @@ interface ProjectPageProps {
 }
 
 type StatusFilterMap = Record<TicketStatus, boolean>;
+type VisibleTicketRow = {
+  ticket: TicketSummary;
+  depth: 0 | 1;
+  isWorkstream: boolean;
+  isExpanded: boolean;
+  hasChildren: boolean;
+};
 
 const COLUMN_OPTIONS: { key: TicketColumnKey; label: string }[] = [
   { key: "id", label: "ID" },
@@ -166,6 +173,31 @@ function ticketTypeLabel(ticket: TicketSummary): string {
   return String(ticket.type || "").trim() || "-";
 }
 
+function isWorkstream(ticket: TicketSummary): boolean {
+  return String(ticket.type || "").trim().toLowerCase() === "workstream";
+}
+
+function parentTicketId(ticket: TicketSummary): string {
+  return String(ticket.parent || "").trim();
+}
+
+function rowSurfaceClasses(row: VisibleTicketRow): string {
+  if (row.isWorkstream) {
+    return "border-sky-500/25 bg-sky-500/5 shadow-sm";
+  }
+  if (row.depth === 1) {
+    return "border-border/60 bg-card/40 border-dashed";
+  }
+  return "border-stone-500/15 bg-stone-500/[0.03]";
+}
+
+function typeBadgeClasses(row: VisibleTicketRow): string {
+  if (row.isWorkstream) {
+    return "border-sky-500/30 bg-sky-500/12 text-sky-200";
+  }
+  return "border-stone-500/30 bg-stone-500/12 text-stone-200";
+}
+
 export function ProjectPage({ config }: ProjectPageProps) {
   const selectedProjectId = config.selectedProjectId;
 
@@ -176,7 +208,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
   const [statusFilters, setStatusFilters] = useState<StatusFilterMap>(buildDefaultStatusFilters);
   const [minTicketId, setMinTicketId] = useState<number | null>(null);
   const [labelFilter, setLabelFilter] = useState("");
-  const [selectedWorkstreamId, setSelectedWorkstreamId] = useState("");
+  const [expandedWorkstreamIds, setExpandedWorkstreamIds] = useState<string[]>([]);
   const [isMobileChromeVisible, setIsMobileChromeVisible] = useState(false);
   const [columnConfigByView, setColumnConfigByView] = useState<TicketColumnsByView>(
     buildDefaultColumnsByView
@@ -186,14 +218,6 @@ export function ProjectPage({ config }: ProjectPageProps) {
   const columnPopupRef = useRef<HTMLDivElement | null>(null);
   const previousStatusByTicketRef = useRef<Map<string, TicketStatus>>(new Map());
   const statusBaselineReadyRef = useRef(false);
-
-  const matchesWorkstreamFilter = useCallback(
-    (ticket: TicketSummary) => {
-      if (!selectedWorkstreamId) return true;
-      return ticketId(ticket) === selectedWorkstreamId || String(ticket.parent || "").trim() === selectedWorkstreamId;
-    },
-    [selectedWorkstreamId]
-  );
 
   useEffect(() => {
     try {
@@ -218,8 +242,12 @@ export function ProjectPage({ config }: ProjectPageProps) {
       if (typeof parsed.labelFilter === "string") {
         setLabelFilter(parsed.labelFilter);
       }
-      if (typeof parsed.selectedWorkstreamId === "string") {
-        setSelectedWorkstreamId(parsed.selectedWorkstreamId);
+      if (Array.isArray(parsed.expandedWorkstreamIds)) {
+        setExpandedWorkstreamIds(
+          parsed.expandedWorkstreamIds
+            .map((value: unknown) => String(value || "").trim())
+            .filter((value: string) => value.length > 0)
+        );
       }
     } catch (_err) {
       // Ignore malformed local preference payloads.
@@ -230,12 +258,12 @@ export function ProjectPage({ config }: ProjectPageProps) {
     try {
       window.localStorage.setItem(
         getPrefsKey(selectedProjectId),
-        JSON.stringify({ statusFilters, minTicketId, labelFilter, selectedWorkstreamId })
+        JSON.stringify({ statusFilters, minTicketId, labelFilter, expandedWorkstreamIds })
       );
     } catch (_err) {
       // Ignore local storage write failures.
     }
-  }, [labelFilter, minTicketId, selectedProjectId, selectedWorkstreamId, statusFilters]);
+  }, [expandedWorkstreamIds, labelFilter, minTicketId, selectedProjectId, statusFilters]);
 
   useEffect(() => {
     let cancelled = false;
@@ -340,7 +368,6 @@ export function ProjectPage({ config }: ProjectPageProps) {
     const visibleCount = loadedTickets.filter((ticket) => {
       if (!statusFilters[normalizeStatus(ticket.status)]) return false;
       if (!ticketHasLabel(ticket, labelFilter)) return false;
-      if (!matchesWorkstreamFilter(ticket)) return false;
       if (minTicketId === null) return true;
       const idNum = toTicketNumber(ticket.id || ticket.fileId);
       return idNum !== null && idNum >= minTicketId;
@@ -352,7 +379,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
       `Project: ${projectLabel} | tickets: ${visibleCount}/${loadedTickets.length}${popupMessage}`
     );
     setLastRefreshText(`last refresh: ${new Date().toLocaleTimeString()}`);
-  }, [labelFilter, matchesWorkstreamFilter, minTicketId, selectedProjectId, statusFilters]);
+  }, [labelFilter, minTicketId, selectedProjectId, statusFilters]);
 
   useEffect(() => {
     let alive = true;
@@ -376,56 +403,133 @@ export function ProjectPage({ config }: ProjectPageProps) {
     };
   }, [config.pollMs, refreshProject]);
 
-  const workstreamOptions = useMemo(
-    () =>
-      tickets
-        .filter((ticket) => String(ticket.type || "").trim().toLowerCase() === "workstream")
-        .map((ticket) => ({
-          id: ticketId(ticket),
-          title: ticket.title || "(untitled)",
-        })),
-    [tickets]
-  );
-
-  const visibleTickets = useMemo(
+  const filteredTickets = useMemo(
     () =>
       tickets.filter((ticket) => {
         if (!statusFilters[normalizeStatus(ticket.status)]) return false;
         if (!ticketHasLabel(ticket, labelFilter)) return false;
-        if (!matchesWorkstreamFilter(ticket)) return false;
         if (minTicketId === null) return true;
         const idNum = toTicketNumber(ticket.id || ticket.fileId);
         return idNum !== null && idNum >= minTicketId;
       }),
-    [labelFilter, matchesWorkstreamFilter, minTicketId, statusFilters, tickets]
+    [labelFilter, minTicketId, statusFilters, tickets]
   );
+
+  const visibleRows = useMemo(() => {
+    const workstreamIds = new Set(filteredTickets.filter(isWorkstream).map((ticket) => ticketId(ticket)));
+    const childrenByWorkstream = new Map<string, TicketSummary[]>();
+
+    for (const ticket of filteredTickets) {
+      if (isWorkstream(ticket)) continue;
+      const parentId = parentTicketId(ticket);
+      if (!parentId || !workstreamIds.has(parentId)) continue;
+      const existing = childrenByWorkstream.get(parentId);
+      if (existing) existing.push(ticket);
+      else childrenByWorkstream.set(parentId, [ticket]);
+    }
+
+    const rows: VisibleTicketRow[] = [];
+
+    for (const ticket of filteredTickets) {
+      if (isWorkstream(ticket)) {
+        const id = ticketId(ticket);
+        const children = childrenByWorkstream.get(id) || [];
+        const expanded = expandedWorkstreamIds.includes(id);
+        rows.push({
+          ticket,
+          depth: 0,
+          isWorkstream: true,
+          isExpanded: expanded,
+          hasChildren: children.length > 0,
+        });
+        if (expanded) {
+          for (const child of children) {
+            rows.push({
+              ticket: child,
+              depth: 1,
+              isWorkstream: false,
+              isExpanded: false,
+              hasChildren: false,
+            });
+          }
+        }
+        continue;
+      }
+
+      const parentId = parentTicketId(ticket);
+      if (parentId && workstreamIds.has(parentId)) continue;
+
+      rows.push({
+        ticket,
+        depth: 0,
+        isWorkstream: false,
+        isExpanded: false,
+        hasChildren: false,
+      });
+    }
+
+    return rows;
+  }, [expandedWorkstreamIds, filteredTickets]);
 
   const visibleColumnCount = useMemo(
     () => Math.max(1, countEnabledColumns(columnConfigByView.desktop)),
     [columnConfigByView.desktop]
   );
 
+  const toggleWorkstream = useCallback((workstreamId: string) => {
+    setExpandedWorkstreamIds((current) =>
+      current.includes(workstreamId)
+        ? current.filter((id) => id !== workstreamId)
+        : [...current, workstreamId]
+    );
+  }, []);
+
   const mobileTicketCards = useMemo(
     () =>
-      visibleTickets.map((ticket) => {
+      visibleRows.map((row) => {
+        const ticket = row.ticket;
         const status = normalizeStatus(ticket.status);
         const id = ticketId(ticket);
 
         return (
           <div
-            className="rounded-lg border border-border/70 bg-card/60 px-2 py-2"
+            className={cn(
+              "rounded-lg border border-border/70 bg-card/60 px-2 py-2",
+              row.depth === 1 ? "ml-6 border-dashed" : ""
+            )}
             key={`mobile-${ticket.fileName || id || ticket.title}`}
           >
             <div className="grid grid-cols-[3.25rem_1fr_auto] items-start gap-x-2">
-              <div className="font-mono text-xs text-foreground">{ticket.id || ticket.fileId || ""}</div>
-              <a
-                className="ticket-link text-xs text-primary hover:underline break-words [overflow-wrap:anywhere]"
-                href={`/project/${encodeURIComponent(selectedProjectId || "")}/ticket/${encodeURIComponent(id)}`}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {ticket.title || "(untitled)"}
-              </a>
+              <div className="flex items-start gap-1 font-mono text-xs text-foreground">
+                {row.depth === 0 && row.isWorkstream ? (
+                  <button
+                    aria-label={row.isExpanded ? `Collapse workstream ${id}` : `Expand workstream ${id}`}
+                    className="mt-0.5 inline-flex h-4 w-4 items-center justify-center rounded border border-border bg-background text-[10px] hover:bg-muted/50"
+                    type="button"
+                    onClick={() => toggleWorkstream(id)}
+                  >
+                    {row.isExpanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                  </button>
+                ) : (
+                  <span className="inline-block h-4 w-4" aria-hidden="true" />
+                )}
+                <span>{ticket.id || ticket.fileId || ""}</span>
+              </div>
+              <div>
+                <a
+                  className="ticket-link text-xs text-primary hover:underline break-words [overflow-wrap:anywhere]"
+                  href={`/project/${encodeURIComponent(selectedProjectId || "")}/ticket/${encodeURIComponent(id)}`}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {ticket.title || "(untitled)"}
+                </a>
+                {row.isWorkstream && row.hasChildren ? (
+                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {row.isExpanded ? "expanded" : "collapsed"} · {row.isExpanded ? "-" : "+"}
+                  </div>
+                ) : null}
+              </div>
               <Badge className={cn("w-fit", status === "doing" ? "status-doing-pulse" : "")} variant={statusVariant(status)}>
                 {status}
               </Badge>
@@ -437,7 +541,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
           </div>
         );
       }),
-    [selectedProjectId, visibleTickets]
+    [selectedProjectId, toggleWorkstream, visibleRows]
   );
 
   const onToggleColumn = useCallback(
@@ -559,22 +663,9 @@ export function ProjectPage({ config }: ProjectPageProps) {
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-muted-foreground" htmlFor="workstream-filter">
-                    Workstream
-                  </label>
-                  <Select
-                    id="workstream-filter"
-                    className="h-9 w-56"
-                    value={selectedWorkstreamId}
-                    onChange={(event) => setSelectedWorkstreamId(event.currentTarget.value)}
-                  >
-                    <option value="">All</option>
-                    {workstreamOptions.map((workstream) => (
-                      <option key={workstream.id} value={workstream.id}>
-                        {workstream.id} {workstream.title}
-                      </option>
-                    ))}
-                  </Select>
+                  <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Showing workstreams and orphaned jobs
+                  </div>
                 </div>
 
                 <div className="relative" ref={columnPopupRef}>
@@ -625,7 +716,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
             mobileTicketCards
           ) : (
             <div className="text-sm text-muted-foreground">
-              {tickets.length > 0 ? "No tickets match current filters." : "No tickets found in selected project."}
+              {tickets.length > 0 ? "No workstreams or orphaned jobs match current filters." : "No tickets found in selected project."}
             </div>
           )}
         </div>
@@ -647,33 +738,76 @@ export function ProjectPage({ config }: ProjectPageProps) {
                 </TableRow>
               </TableHeader>
               <TableBody id="rows">
-                {visibleTickets.length === 0 ? (
+                {visibleRows.length === 0 ? (
                   <TableRow>
                     <TableCell className="text-muted-foreground" colSpan={visibleColumnCount}>
                       {tickets.length > 0
-                        ? "No tickets match current filters."
+                        ? "No workstreams or orphaned jobs match current filters."
                         : "No tickets found in selected project."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  visibleTickets.map((ticket) => {
+                  visibleRows.map((row) => {
+                    const ticket = row.ticket;
                     const status = normalizeStatus(ticket.status);
                     const updated = formatUpdatedParts(ticket);
                     const id = ticketId(ticket);
 
                     return (
-                      <TableRow key={`${ticket.fileName || id || ticket.title}`}>
-                        {columnConfigByView.desktop.id ? <TableCell>{ticket.id || ticket.fileId || ""}</TableCell> : null}
+                      <TableRow
+                        className={cn(row.depth === 1 ? "bg-muted/10" : "")}
+                        key={`${ticket.fileName || id || ticket.title}`}
+                      >
+                        {columnConfigByView.desktop.id ? (
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {row.depth === 0 && row.isWorkstream ? (
+                                <button
+                                  aria-label={row.isExpanded ? `Collapse workstream ${id}` : `Expand workstream ${id}`}
+                                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[10px] hover:bg-muted/50"
+                                  type="button"
+                                  onClick={() => toggleWorkstream(id)}
+                                >
+                                  {row.isExpanded ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                                </button>
+                              ) : (
+                                <span className="inline-block h-5 w-5 shrink-0" aria-hidden="true" />
+                              )}
+                              <span>{ticket.id || ticket.fileId || ""}</span>
+                            </div>
+                          </TableCell>
+                        ) : null}
                         {columnConfigByView.desktop.title ? (
                           <TableCell>
-                            <a
-                              className="ticket-link text-primary hover:underline"
-                              href={`/project/${encodeURIComponent(selectedProjectId || "")}/ticket/${encodeURIComponent(id)}`}
-                              rel="noopener noreferrer"
-                              target="_blank"
-                            >
-                              {ticket.title || "(untitled)"}
-                            </a>
+                            <div className={cn("flex items-start gap-2", row.depth === 1 ? "pl-6" : "")}>
+                              {!columnConfigByView.desktop.id && row.depth === 0 && row.isWorkstream ? (
+                                <button
+                                  aria-label={row.isExpanded ? `Collapse workstream ${id}` : `Expand workstream ${id}`}
+                                  className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-background text-[10px] hover:bg-muted/50"
+                                  type="button"
+                                  onClick={() => toggleWorkstream(id)}
+                                >
+                                  {row.isExpanded ? <Minus className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                                </button>
+                              ) : !columnConfigByView.desktop.id ? (
+                                <span className="inline-block h-5 w-5 shrink-0" aria-hidden="true" />
+                              ) : null}
+                              <div className="min-w-0">
+                                <a
+                                  className="ticket-link text-primary hover:underline"
+                                  href={`/project/${encodeURIComponent(selectedProjectId || "")}/ticket/${encodeURIComponent(id)}`}
+                                  rel="noopener noreferrer"
+                                  target="_blank"
+                                >
+                                  {ticket.title || "(untitled)"}
+                                </a>
+                                {row.isWorkstream && row.hasChildren ? (
+                                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                    {row.isExpanded ? "expanded" : "collapsed"} · {row.isExpanded ? "-" : "+"}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
                             <div className="mt-1 text-xs text-muted-foreground">{ticketHierarchyText(ticket)}</div>
                           </TableCell>
                         ) : null}
