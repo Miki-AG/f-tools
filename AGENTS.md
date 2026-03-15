@@ -22,6 +22,6 @@ File system contract in the target repo:
 
 - `_PLAN/` holds planning artifacts
 - `_DOCS/` holds post-implementation docs
-- `_TICKETS/` holds execution tickets and report state
+- `_TICKETS/` holds execution tickets plus report state such as `status.json` and `config.json`
 
 Do not treat this file as maintainer documentation for `f-tools` itself. It is only a routing guide for agents using the tools.

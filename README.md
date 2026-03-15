@@ -116,7 +116,10 @@ Behavior summary:
 
 - one `f-report` daemon serves all attached repos
 - report data is read from `./_TICKETS`
-- project views can focus on a single WORKSTREAM and show its child JOBs
+- project views show workstreams and orphaned jobs by default
+- child jobs are shown under expanded workstreams
+- the project filter bar supports comma-separated ticket ids; when populated, the view is limited to the selected tickets plus children of selected workstreams when those workstreams are expanded
+- `_TICKETS/status.json` popup messages are highlighted in a dedicated popup strip with level-based styling
 - ticket detail pages expose hierarchy metadata alongside editable ticket fields
 
 ## Agent Expectations

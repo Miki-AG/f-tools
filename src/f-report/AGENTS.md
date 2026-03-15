@@ -14,7 +14,10 @@ Core behavior:
 
 - One `f-report` daemon can serve multiple attached repos.
 - Report data comes from each repo's `_TICKETS/` folder.
-- The web UI shows attached projects, project ticket tables, and ticket detail pages.
+- The web UI shows attached projects, project ticket hierarchies, and ticket detail pages.
+- Project views show workstreams and orphaned jobs by default; child jobs appear when their workstream is expanded.
+- The project filter bar supports comma-separated ticket ids and narrows the view to those tickets, with child jobs shown only when their selected workstream is expanded.
+- Popup notices from `_TICKETS/status.json` are rendered in a dedicated level-styled popup strip.
 
 Recommended usage flow:
 
@@ -35,6 +38,7 @@ Agent rules:
 
 - Use `f-report` for visibility and light editing, not as a replacement for keeping ticket files well structured.
 - Expect multi-repo behavior; stopping the daemon affects all attached repos.
+- Keep `_TICKETS/status.json` meaningful; popup messages surface prominently in the project UI.
 - If the UI appears stale or missing, rebuild the web app before assuming the server is broken.
 
 Typical commands:
