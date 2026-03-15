@@ -236,11 +236,25 @@ async function runScenarios() {
       }
     );
     assert(configUpdateA.res.ok, "Project config update endpoint must succeed.");
+    assert(
+      configUpdateA.data.config &&
+        configUpdateA.data.config.columns &&
+        configUpdateA.data.config.columns.desktop &&
+        configUpdateA.data.config.columns.desktop.type === true,
+      "Project config response must expose the type column."
+    );
 
     const repoAConfigPath = path.join(repoA, "_TICKETS", "config.json");
     const repoBConfigPath = path.join(repoB, "_TICKETS", "config.json");
     assert(fs.existsSync(repoAConfigPath), "Repo A config file should be created.");
     assert(!fs.existsSync(repoBConfigPath), "Repo B config file must not be created by Repo A update.");
+    const repoAConfig = JSON.parse(fs.readFileSync(repoAConfigPath, "utf8"));
+    assert(
+      repoAConfig.columns &&
+        repoAConfig.columns.desktop &&
+        repoAConfig.columns.desktop.type === true,
+      "Persisted project config must include the type column."
+    );
 
     const updateRes = await fetchJson(
       `${baseUrl}/api/projects/${encodeURIComponent(projectA.id)}/ticket/0002`,

@@ -216,6 +216,30 @@ function testPlannerPrdGenerator() {
   );
 }
 
+function testPlannerHelpDescribesFeatures() {
+  const repo = makeTempRepo();
+
+  const result = runTool(PLANNER_BIN, repo, ["-h"]);
+  printResult("015-planner-help", result);
+  assert(result.exitCode === 0, "f-planner -h must succeed.");
+  assert(
+    result.stdout.includes('req and plan slug the feature name into ./_PLAN/<feature-slug>/.'),
+    "Planner help must explain feature folders."
+  );
+  assert(
+    result.stdout.includes('Example: "Update Workflow" -> ./_PLAN/update-workflow/'),
+    "Planner help must include a feature folder example."
+  );
+  assert(
+    result.stdout.includes("010_<feature-slug>.REQ.md"),
+    "Planner help must mention requirement file naming."
+  );
+  assert(
+    result.stdout.includes("020_<feature-slug>.PLAN.md"),
+    "Planner help must mention plan file naming."
+  );
+}
+
 function testInitPreservesExistingRootGuides() {
   const repo = makeTempRepo();
   const customAgents = "# Custom Agent Guide\n";
@@ -245,7 +269,8 @@ function main() {
     ["004-ticket-hierarchy-and-generators", testTicketHierarchyAndGenerators],
     ["005-invalid-parent-validation", testInvalidParentValidation],
     ["006-planner-prd-generator", testPlannerPrdGenerator],
-    ["007-init-preserves-existing-root-guides", testInitPreservesExistingRootGuides],
+    ["007-planner-help-describes-features", testPlannerHelpDescribesFeatures],
+    ["008-init-preserves-existing-root-guides", testInitPreservesExistingRootGuides],
   ];
 
   let passed = 0;

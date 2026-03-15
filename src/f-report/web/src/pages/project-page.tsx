@@ -30,6 +30,7 @@ type StatusFilterMap = Record<TicketStatus, boolean>;
 const COLUMN_OPTIONS: { key: TicketColumnKey; label: string }[] = [
   { key: "id", label: "ID" },
   { key: "title", label: "Title" },
+  { key: "type", label: "Type" },
   { key: "status", label: "Status" },
   { key: "priority", label: "Priority" },
   { key: "owner", label: "Owner" },
@@ -53,6 +54,7 @@ function buildDefaultDesktopColumns(): TicketColumnsConfig {
   return {
     id: true,
     title: true,
+    type: true,
     status: true,
     priority: true,
     owner: true,
@@ -66,6 +68,7 @@ function buildDefaultMobileColumns(): TicketColumnsConfig {
   return {
     id: true,
     title: true,
+    type: true,
     status: true,
     priority: false,
     owner: false,
@@ -90,6 +93,7 @@ function normalizeColumnsConfig(
   return {
     id: typeof source.id === "boolean" ? source.id : defaults.id,
     title: typeof source.title === "boolean" ? source.title : defaults.title,
+    type: typeof source.type === "boolean" ? source.type : defaults.type,
     status: typeof source.status === "boolean" ? source.status : defaults.status,
     priority: typeof source.priority === "boolean" ? source.priority : defaults.priority,
     owner: typeof source.owner === "boolean" ? source.owner : defaults.owner,
@@ -156,6 +160,10 @@ function ticketHierarchyText(ticket: TicketSummary): string {
   return [type, parent ? `parent ${parent}` : "", dependsOn ? `depends on ${dependsOn}` : ""]
     .filter((part) => part.length > 0)
     .join(" | ");
+}
+
+function ticketTypeLabel(ticket: TicketSummary): string {
+  return String(ticket.type || "").trim() || "-";
 }
 
 export function ProjectPage({ config }: ProjectPageProps) {
@@ -422,6 +430,9 @@ export function ProjectPage({ config }: ProjectPageProps) {
                 {status}
               </Badge>
             </div>
+            <div className="mt-2 flex items-center gap-2 text-[11px]">
+              <Badge variant="muted">{ticketTypeLabel(ticket)}</Badge>
+            </div>
             <div className="mt-2 text-[11px] text-muted-foreground">{ticketHierarchyText(ticket)}</div>
           </div>
         );
@@ -626,6 +637,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
                 <TableRow>
                   {columnConfigByView.desktop.id ? <TableHead>id</TableHead> : null}
                   {columnConfigByView.desktop.title ? <TableHead>title</TableHead> : null}
+                  {columnConfigByView.desktop.type ? <TableHead>type</TableHead> : null}
                   {columnConfigByView.desktop.status ? <TableHead>status</TableHead> : null}
                   {columnConfigByView.desktop.priority ? <TableHead>priority</TableHead> : null}
                   {columnConfigByView.desktop.owner ? <TableHead>owner</TableHead> : null}
@@ -665,6 +677,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
                             <div className="mt-1 text-xs text-muted-foreground">{ticketHierarchyText(ticket)}</div>
                           </TableCell>
                         ) : null}
+                        {columnConfigByView.desktop.type ? <TableCell>{ticketTypeLabel(ticket)}</TableCell> : null}
                         {columnConfigByView.desktop.status ? (
                           <TableCell>
                             <Badge className={status === "doing" ? "status-doing-pulse" : ""} variant={statusVariant(status)}>

@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { CONFIG_FILE_NAME, STATUS_FILE_NAME, TICKETS_DIR_NAME } = require("./constants");
 
-const COLUMN_KEYS = ["id", "title", "status", "priority", "owner", "labels", "updated", "updates"];
+const COLUMN_KEYS = ["id", "title", "type", "status", "priority", "owner", "labels", "updated", "updates"];
 
 function unquote(value) {
   const trimmed = String(value || "").trim();
@@ -173,6 +173,7 @@ function buildDefaultDesktopColumns() {
   return {
     id: true,
     title: true,
+    type: true,
     status: true,
     priority: true,
     owner: true,
@@ -186,6 +187,7 @@ function buildDefaultMobileColumns() {
   return {
     id: true,
     title: true,
+    type: true,
     status: true,
     priority: false,
     owner: false,

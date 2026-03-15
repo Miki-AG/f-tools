@@ -91,6 +91,11 @@ Create planning and documentation artifacts:
 ./f-planner doc "Workflow Guide"
 ```
 
+`req` and `plan` treat the name as a feature name, slug it into a feature folder under `_PLAN/`, and create:
+
+- `_PLAN/update-workflow/010_update-workflow.REQ.md`
+- `_PLAN/update-workflow/020_update-workflow.PLAN.md`
+
 ## f-report
 
 Build the web UI once before starting the report server:

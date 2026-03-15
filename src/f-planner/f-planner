@@ -15,9 +15,16 @@ function printHelp() {
 
 Commands:
   prd   Create the top-level PRD at ./_PLAN/010_PRD.md.
-  req   Create a requirement doc under ./_PLAN/<feature>/.
-  plan  Create a plan doc under ./_PLAN/<feature>/.
+  req   Create a requirement doc in a feature folder under ./_PLAN/<feature-slug>/.
+  plan  Create a plan doc in a feature folder under ./_PLAN/<feature-slug>/.
   doc   Create a documentation doc under ./_DOCS/.
+
+Features:
+  req and plan slug the feature name into ./_PLAN/<feature-slug>/.
+  Example: "Update Workflow" -> ./_PLAN/update-workflow/
+  Files created there:
+    010_<feature-slug>.REQ.md
+    020_<feature-slug>.PLAN.md
 `);
 }
 

@@ -4,6 +4,7 @@ export type TicketStatus = "open" | "doing" | "blocked" | "done" | "wontfix" | "
 export type TicketColumnKey =
   | "id"
   | "title"
+  | "type"
   | "status"
   | "priority"
   | "owner"
