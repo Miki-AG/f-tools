@@ -61,7 +61,7 @@ function buildDefaultDesktopColumns(): TicketColumnsConfig {
   return {
     id: true,
     title: true,
-    type: true,
+    type: false,
     status: true,
     priority: true,
     owner: true,
@@ -75,7 +75,7 @@ function buildDefaultMobileColumns(): TicketColumnsConfig {
   return {
     id: true,
     title: true,
-    type: true,
+    type: false,
     status: true,
     priority: false,
     owner: false,
@@ -494,8 +494,9 @@ export function ProjectPage({ config }: ProjectPageProps) {
         return (
           <div
             className={cn(
-              "rounded-lg border border-border/70 bg-card/60 px-2 py-2",
-              row.depth === 1 ? "ml-6 border-dashed" : ""
+              "rounded-lg border px-2 py-2 transition-colors",
+              rowSurfaceClasses(row),
+              row.depth === 1 ? "ml-6" : ""
             )}
             key={`mobile-${ticket.fileName || id || ticket.title}`}
           >
@@ -517,7 +518,10 @@ export function ProjectPage({ config }: ProjectPageProps) {
               </div>
               <div>
                 <a
-                  className="ticket-link text-xs text-primary hover:underline break-words [overflow-wrap:anywhere]"
+                  className={cn(
+                    "ticket-link text-xs text-primary hover:underline break-words [overflow-wrap:anywhere]",
+                    row.isWorkstream ? "font-semibold tracking-[0.01em]" : "font-medium"
+                  )}
                   href={`/project/${encodeURIComponent(selectedProjectId || "")}/ticket/${encodeURIComponent(id)}`}
                   rel="noopener noreferrer"
                   target="_blank"
@@ -535,7 +539,9 @@ export function ProjectPage({ config }: ProjectPageProps) {
               </Badge>
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px]">
-              <Badge variant="muted">{ticketTypeLabel(ticket)}</Badge>
+              <Badge className={typeBadgeClasses(row)} variant="outline">
+                {ticketTypeLabel(ticket)}
+              </Badge>
             </div>
             <div className="mt-2 text-[11px] text-muted-foreground">{ticketHierarchyText(ticket)}</div>
           </div>
@@ -602,7 +608,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
             isMobileChromeVisible ? "block" : "hidden md:block"
           )}
         >
-          <div className="space-y-4 p-0 md:p-6 md:pt-0">
+          <div className="space-y-4 p-4 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-medium text-muted-foreground">Ticket filters</div>
               <div className="flex flex-wrap items-center gap-2">
@@ -755,7 +761,12 @@ export function ProjectPage({ config }: ProjectPageProps) {
 
                     return (
                       <TableRow
-                        className={cn(row.depth === 1 ? "bg-muted/10" : "")}
+                        className={cn(
+                          "transition-colors",
+                          row.isWorkstream ? "bg-sky-500/[0.045]" : "",
+                          row.depth === 1 ? "bg-muted/10" : "",
+                          !row.isWorkstream && row.depth === 0 ? "bg-stone-500/[0.025]" : ""
+                        )}
                         key={`${ticket.fileName || id || ticket.title}`}
                       >
                         {columnConfigByView.desktop.id ? (
@@ -794,7 +805,10 @@ export function ProjectPage({ config }: ProjectPageProps) {
                               ) : null}
                               <div className="min-w-0">
                                 <a
-                                  className="ticket-link text-primary hover:underline"
+                                  className={cn(
+                                    "ticket-link text-primary hover:underline",
+                                    row.isWorkstream ? "font-semibold tracking-[0.01em]" : "font-medium"
+                                  )}
                                   href={`/project/${encodeURIComponent(selectedProjectId || "")}/ticket/${encodeURIComponent(id)}`}
                                   rel="noopener noreferrer"
                                   target="_blank"
@@ -806,12 +820,18 @@ export function ProjectPage({ config }: ProjectPageProps) {
                                     {row.isExpanded ? "expanded" : "collapsed"} · {row.isExpanded ? "-" : "+"}
                                   </div>
                                 ) : null}
+                                <div className="mt-1 text-xs text-muted-foreground">{ticketHierarchyText(ticket)}</div>
                               </div>
                             </div>
-                            <div className="mt-1 text-xs text-muted-foreground">{ticketHierarchyText(ticket)}</div>
                           </TableCell>
                         ) : null}
-                        {columnConfigByView.desktop.type ? <TableCell>{ticketTypeLabel(ticket)}</TableCell> : null}
+                        {columnConfigByView.desktop.type ? (
+                          <TableCell>
+                            <Badge className={typeBadgeClasses(row)} variant="outline">
+                              {ticketTypeLabel(ticket)}
+                            </Badge>
+                          </TableCell>
+                        ) : null}
                         {columnConfigByView.desktop.status ? (
                           <TableCell>
                             <Badge className={status === "doing" ? "status-doing-pulse" : ""} variant={statusVariant(status)}>

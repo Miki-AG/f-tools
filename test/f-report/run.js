@@ -240,8 +240,8 @@ async function runScenarios() {
       configUpdateA.data.config &&
         configUpdateA.data.config.columns &&
         configUpdateA.data.config.columns.desktop &&
-        configUpdateA.data.config.columns.desktop.type === true,
-      "Project config response must expose the type column."
+        configUpdateA.data.config.columns.desktop.type === false,
+      "Project config response must keep the type column hidden by default."
     );
 
     const repoAConfigPath = path.join(repoA, "_TICKETS", "config.json");
@@ -252,8 +252,8 @@ async function runScenarios() {
     assert(
       repoAConfig.columns &&
         repoAConfig.columns.desktop &&
-        repoAConfig.columns.desktop.type === true,
-      "Persisted project config must include the type column."
+        repoAConfig.columns.desktop.type === false,
+      "Persisted project config must keep the type column hidden by default."
     );
 
     const updateRes = await fetchJson(

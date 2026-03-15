@@ -173,7 +173,7 @@ function buildDefaultDesktopColumns() {
   return {
     id: true,
     title: true,
-    type: true,
+    type: false,
     status: true,
     priority: true,
     owner: true,
@@ -187,7 +187,7 @@ function buildDefaultMobileColumns() {
   return {
     id: true,
     title: true,
-    type: true,
+    type: false,
     status: true,
     priority: false,
     owner: false,
