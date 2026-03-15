@@ -81,6 +81,11 @@ function testInitAutomationTickets() {
   expectExists(path.join(repo, "_TICKETS", "README.md"), "_TICKETS/README.md must exist.");
   assert(read(path.join(repo, "AGENTS.md")).includes("_TICKETS/"), "Ticket-only AGENTS.md must mention _TICKETS/.");
   assert(read(path.join(repo, "GEMINI.md")).includes("AGENTS.md"), "GEMINI.md must redirect to AGENTS.md.");
+  expectExists(path.join(repo, "_TICKETS", ".gitignore"), "_TICKETS/.gitignore must exist for ticket init.");
+  const gitignore = read(path.join(repo, "_TICKETS", ".gitignore"));
+  assert(gitignore.includes("config.json"), "_TICKETS/.gitignore must ignore config.json.");
+  assert(gitignore.includes("status.json"), "_TICKETS/.gitignore must ignore status.json.");
+  assert(!fs.existsSync(path.join(repo, ".gitignore")), "Root .gitignore must not be created by ticket init.");
   assert(!fs.existsSync(path.join(repo, "_PLAN")), "_PLAN must not exist for ticket-only init.");
   assert(!fs.existsSync(path.join(repo, "_DOCS")), "_DOCS must not exist for ticket-only init.");
 }
@@ -97,6 +102,8 @@ function testInitAutomationPlanning() {
   expectExists(path.join(repo, "_DOCS", "README.md"), "_DOCS/README.md must exist.");
   assert(read(path.join(repo, "AGENTS.md")).includes("_PLAN/"), "Planning-only AGENTS.md must mention _PLAN/.");
   assert(read(path.join(repo, "AGENTS.md")).includes("_DOCS/"), "Planning-only AGENTS.md must mention _DOCS/.");
+  assert(!fs.existsSync(path.join(repo, ".gitignore")), "Root .gitignore must not be created for planning-only init.");
+  assert(!fs.existsSync(path.join(repo, "_TICKETS", ".gitignore")), "_TICKETS/.gitignore must not be created for planning-only init.");
   assert(!fs.existsSync(path.join(repo, "_TICKETS")), "_TICKETS must not exist for planning-only init.");
 }
 
@@ -111,6 +118,8 @@ function testInitInteractiveBoth() {
   expectExists(path.join(repo, "_PLAN", "README.md"), "_PLAN/README.md must exist.");
   expectExists(path.join(repo, "_DOCS", "README.md"), "_DOCS/README.md must exist.");
   expectExists(path.join(repo, "_PLAN", "010_PRD.md"), "_PLAN/010_PRD.md must exist.");
+  expectExists(path.join(repo, "_TICKETS", ".gitignore"), "_TICKETS/.gitignore must exist for both-mode init.");
+  assert(!fs.existsSync(path.join(repo, ".gitignore")), "Root .gitignore must not be created for both-mode init.");
   assert(read(path.join(repo, "AGENTS.md")).includes("_PLAN/"), "Both-mode AGENTS.md must mention _PLAN/.");
   assert(read(path.join(repo, "AGENTS.md")).includes("_TICKETS/"), "Both-mode AGENTS.md must mention _TICKETS/.");
   assert(read(path.join(repo, "AGENTS.md")).includes("_DOCS/"), "Both-mode AGENTS.md must mention _DOCS/.");
@@ -254,6 +263,27 @@ function testInitPreservesExistingRootGuides() {
   assert(read(path.join(repo, "GEMINI.md")) === customGemini, "Existing GEMINI.md must not be overwritten.");
 }
 
+function testInitUpdatesExistingGitignore() {
+  const repo = makeTempRepo();
+  fs.mkdirSync(path.join(repo, "_TICKETS"), { recursive: true });
+  const customGitignore = "notes.txt\nstatus.json\n";
+  fs.writeFileSync(path.join(repo, "_TICKETS", ".gitignore"), customGitignore, "utf8");
+
+  const result = runTool(TICKET_BIN, repo, ["init", "--modules", "tickets"]);
+  printResult("016-init-updates-gitignore", result);
+  assert(result.exitCode === 0, "Init with existing _TICKETS/.gitignore must still succeed.");
+
+  const gitignore = read(path.join(repo, "_TICKETS", ".gitignore"));
+  assert(gitignore.includes("notes.txt"), "Existing _TICKETS/.gitignore content must be preserved.");
+  assert(gitignore.includes("config.json"), "_TICKETS/.gitignore must add config.json.");
+  assert(gitignore.includes("status.json"), "_TICKETS/.gitignore must keep status.json.");
+  assert(
+    gitignore.split("status.json").length - 1 === 1,
+    "_TICKETS/.gitignore must not duplicate existing status.json rule."
+  );
+  assert(!fs.existsSync(path.join(repo, ".gitignore")), "Root .gitignore must not be created.");
+}
+
 function main() {
   if (!fs.existsSync(TICKET_BIN)) {
     fail(`Missing root wrapper: ${TICKET_BIN}`);
@@ -271,6 +301,7 @@ function main() {
     ["006-planner-prd-generator", testPlannerPrdGenerator],
     ["007-planner-help-describes-features", testPlannerHelpDescribesFeatures],
     ["008-init-preserves-existing-root-guides", testInitPreservesExistingRootGuides],
+    ["009-init-updates-existing-gitignore", testInitUpdatesExistingGitignore],
   ];
 
   let passed = 0;

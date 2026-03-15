@@ -34,6 +34,10 @@ What it reads from the target repo:
 - `_TICKETS/status.json` for per-ticket updates and popup notices
 - `_TICKETS/config.json` for project column preferences
 
+Git note:
+
+- `f-ticket init` adds `status.json` and `config.json` to `_TICKETS/.gitignore` because `f-report` treats them as local runtime state.
+
 Agent rules:
 
 - Use `f-report` for visibility and light editing, not as a replacement for keeping ticket files well structured.

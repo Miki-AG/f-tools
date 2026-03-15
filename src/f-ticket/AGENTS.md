@@ -14,6 +14,7 @@ Initialization:
 - `./f-ticket init --modules tickets` creates `_TICKETS/`
 - `./f-ticket init --modules planning` creates `_PLAN/` and `_DOCS/`
 - `./f-ticket init --modules both` creates all three
+- ticket-enabled init also creates or updates `_TICKETS/.gitignore` to ignore `config.json` and `status.json`
 
 Ticket model:
 
@@ -33,6 +34,7 @@ Recommended usage flow:
 Agent rules:
 
 - Keep `_TICKETS/` as the source of truth for execution state.
+- Treat `_TICKETS/config.json` and `_TICKETS/status.json` as local runtime state, not durable repo state.
 - Use `workstream` for grouping and `job` for implementable units.
 - Update tickets as you work; do not batch all ticket maintenance until the end.
 - Record meaningful progress in the ticket log.

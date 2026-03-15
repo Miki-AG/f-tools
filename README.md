@@ -72,6 +72,10 @@ Initialize a repo:
 ```
 
 `f-ticket init` also writes root `AGENTS.md` and `GEMINI.md` guidance files in the target repo if they do not already exist.
+When tickets are initialized, it also creates or updates `_TICKETS/.gitignore` to ignore local report state:
+
+- `config.json`
+- `status.json`
 
 Create and manage tickets:
 
@@ -116,6 +120,7 @@ Behavior summary:
 
 - one `f-report` daemon serves all attached repos
 - report data is read from `./_TICKETS`
+- `_TICKETS/config.json` and `_TICKETS/status.json` are treated as local report state and are ignored via `_TICKETS/.gitignore`
 - project views show workstreams and orphaned jobs by default
 - child jobs are shown under expanded workstreams
 - the project filter bar supports comma-separated ticket ids; when populated, the view is limited to the selected tickets plus children of selected workstreams when those workstreams are expanded

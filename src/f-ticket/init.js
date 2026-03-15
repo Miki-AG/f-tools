@@ -19,6 +19,8 @@ const {
 
 const ROOT_AGENTS_FILE = "AGENTS.md";
 const ROOT_GEMINI_FILE = "GEMINI.md";
+const TICKETS_GITIGNORE_FILE = ".gitignore";
+const LOCAL_TICKET_STATE_IGNORE_RULES = ["config.json", "status.json"];
 
 function fail(message, code = 1) {
   process.stderr.write(`${message}\n`);
@@ -229,6 +231,51 @@ function writeRootGuideIfMissing(fileName, content) {
   }
 }
 
+function ensureTicketGitignoreRules(modules) {
+  if (modules !== "tickets" && modules !== "both") return;
+
+  const filePath = path.join(ticketsDir(), TICKETS_GITIGNORE_FILE);
+  let existing = "";
+
+  if (fs.existsSync(filePath)) {
+    let stat;
+    try {
+      stat = fs.statSync(filePath);
+    } catch (err) {
+      fail(`Unable to stat ${TICKETS_DIR_NAME}/${TICKETS_GITIGNORE_FILE}: ${err.message}`);
+    }
+    if (!stat.isFile()) {
+      fail(`${TICKETS_DIR_NAME}/${TICKETS_GITIGNORE_FILE} exists but is not a file: ${filePath}`);
+    }
+    try {
+      existing = fs.readFileSync(filePath, "utf8");
+    } catch (err) {
+      fail(`Unable to read ${TICKETS_DIR_NAME}/${TICKETS_GITIGNORE_FILE}: ${err.message}`);
+    }
+  }
+
+  const existingLines = existing.split(/\r?\n/);
+  const hasRule = (rule) => existingLines.some((line) => line.trim() === rule);
+  const missingRules = LOCAL_TICKET_STATE_IGNORE_RULES.filter((rule) => !hasRule(rule));
+  if (missingRules.length === 0) return;
+
+  const nextParts = [];
+  const trimmedExisting = existing.replace(/\s+$/, "");
+  if (trimmedExisting.length > 0) {
+    nextParts.push(trimmedExisting);
+  }
+  nextParts.push("# f-tools local report state");
+  nextParts.push(...missingRules);
+
+  const nextContent = `${nextParts.join("\n")}\n`;
+
+  try {
+    writeFileAtomic(filePath, nextContent);
+  } catch (err) {
+    fail(`Unable to write ${TICKETS_DIR_NAME}/${TICKETS_GITIGNORE_FILE}: ${err.message}`);
+  }
+}
+
 function createPlanningArtifacts(modules) {
   for (const target of selectedTargets(modules)) {
     if (!fs.existsSync(target.dirPath)) {
@@ -259,6 +306,7 @@ function createPlanningArtifacts(modules) {
 
   writeRootGuideIfMissing(ROOT_AGENTS_FILE, rootAgentsContent(modules));
   writeRootGuideIfMissing(ROOT_GEMINI_FILE, rootGeminiContent());
+  ensureTicketGitignoreRules(modules);
 }
 
 function promptModules() {

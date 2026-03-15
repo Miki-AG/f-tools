@@ -24,4 +24,8 @@ File system contract in the target repo:
 - `_DOCS/` holds post-implementation docs
 - `_TICKETS/` holds execution tickets plus report state such as `status.json` and `config.json`
 
+Initialization note:
+
+- `./f-ticket init` adds `config.json` and `status.json` to `_TICKETS/.gitignore` because they are local report-state files.
+
 Do not treat this file as maintainer documentation for `f-tools` itself. It is only a routing guide for agents using the tools.
