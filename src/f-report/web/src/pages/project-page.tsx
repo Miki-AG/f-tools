@@ -161,16 +161,11 @@ function ticketId(ticket: TicketSummary): string {
 }
 
 function ticketHierarchyText(ticket: TicketSummary): string {
-  const type = String(ticket.type || "").trim().toLowerCase() || "ticket";
   const parent = String(ticket.parent || "").trim();
   const dependsOn = Array.isArray(ticket.dependsOn) ? ticket.dependsOn.join(", ") : "";
-  return [type, parent ? `parent ${parent}` : "", dependsOn ? `depends on ${dependsOn}` : ""]
+  return [parent ? `parent ${parent}` : "", dependsOn ? `depends on ${dependsOn}` : ""]
     .filter((part) => part.length > 0)
     .join(" | ");
-}
-
-function ticketTypeLabel(ticket: TicketSummary): string {
-  return String(ticket.type || "").trim() || "-";
 }
 
 function isWorkstream(ticket: TicketSummary): boolean {
@@ -209,13 +204,6 @@ function rowSurfaceClasses(row: VisibleTicketRow): string {
     return "border-border/60 bg-card/40 border-dashed";
   }
   return "border-stone-500/15 bg-stone-500/[0.03]";
-}
-
-function typeBadgeClasses(row: VisibleTicketRow): string {
-  if (row.isWorkstream) {
-    return "border-sky-500/30 bg-sky-500/12 text-sky-200";
-  }
-  return "border-stone-500/30 bg-stone-500/12 text-stone-200";
 }
 
 export function ProjectPage({ config }: ProjectPageProps) {
@@ -593,12 +581,9 @@ export function ProjectPage({ config }: ProjectPageProps) {
                 {status}
               </Badge>
             </div>
-            <div className="mt-2 flex items-center gap-2 text-[11px]">
-              <Badge className={typeBadgeClasses(row)} variant="outline">
-                {ticketTypeLabel(ticket)}
-              </Badge>
-            </div>
-            <div className="mt-2 text-[11px] text-muted-foreground">{ticketHierarchyText(ticket)}</div>
+            {ticketHierarchyText(ticket) ? (
+              <div className="mt-2 text-[11px] text-muted-foreground">{ticketHierarchyText(ticket)}</div>
+            ) : null}
           </div>
         );
       }),
@@ -861,9 +846,7 @@ export function ProjectPage({ config }: ProjectPageProps) {
                         ) : null}
                         {columnConfigByView.desktop.type ? (
                           <TableCell>
-                            <Badge className={typeBadgeClasses(row)} variant="outline">
-                              {ticketTypeLabel(ticket)}
-                            </Badge>
+                            {String(ticket.type || "").trim()}
                           </TableCell>
                         ) : null}
                         {columnConfigByView.desktop.status ? (
